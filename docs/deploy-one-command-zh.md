@@ -152,12 +152,16 @@ nano /opt/freqtrade-cn/user_data/config.json
 "telegram": {
     "enabled": true,
     "language": "zh",
-    "token": "你的 Telegram Bot Token",
+    "token": "你的完整 Telegram Bot Token，格式是 机器人ID:密钥",
     "chat_id": "你的 Chat ID"
 }
 ```
 
-保存后重启：
+`token` 必须填写完整字符串，例如 `123456789:AA...`。冒号前面的数字只是 bot id，不是 `chat_id`；`chat_id` 需要从 `getUpdates` 里获取。
+
+保存后继续执行同一条一键部署命令即可。代码没变化时，脚本只会快速重启现有容器。
+
+也可以在服务器上手动重启：
 
 ```bash
 cd /opt/freqtrade-cn

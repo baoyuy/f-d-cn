@@ -26,7 +26,8 @@ class RPCManager:
         config = freqtrade.config
         # Enable telegram
         if config.get("telegram", {}).get("enabled", False):
-            if config.get("telegram", {}).get("language") == "zh":
+            telegram_language = config.get("telegram", {}).get("language", "zh")
+            if telegram_language != "en":
                 logger.info("Enabling rpc.telegram_cn ...")
                 from freqtrade.rpc.telegram_cn import TelegramCN as Telegram
             else:

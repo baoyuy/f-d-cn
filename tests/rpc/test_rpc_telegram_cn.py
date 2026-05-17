@@ -42,6 +42,22 @@ def test_telegram_cn_normalizes_market_direction_args(telegram_cn) -> None:
     assert telegram_cn._normalize_market_direction_args(["无"]) == ["none"]
 
 
+def test_telegram_cn_translates_legacy_keyboard_config(telegram_cn) -> None:
+    telegram_cn._config["telegram"]["keyboard"] = [
+        ["/daily", "/profit", "/balance"],
+        ["/status", "/status table", "/performance"],
+        ["/count", "/start", "/stop", "/help"],
+    ]
+
+    telegram_cn._init_keyboard()
+
+    assert telegram_cn._keyboard == [
+        ["日报", "收益", "余额"],
+        ["状态", "状态表", "表现"],
+        ["持仓数", "启动", "停止", "帮助"],
+    ]
+
+
 async def test_telegram_cn_dispatches_chinese_text(telegram_cn) -> None:
     telegram_cn._status = AsyncMock()
     update = MagicMock()

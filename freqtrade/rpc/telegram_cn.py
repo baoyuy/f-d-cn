@@ -43,6 +43,20 @@ STATUS_WORDS = {
 }
 
 
+KEYBOARD_LABELS = {
+    "/daily": "日报",
+    "/profit": "收益",
+    "/balance": "余额",
+    "/status": "状态",
+    "/status table": "状态表",
+    "/performance": "表现",
+    "/count": "持仓数",
+    "/start": "启动",
+    "/stop": "停止",
+    "/help": "帮助",
+}
+
+
 TEXT_REPLACEMENTS = (
     ("*Status:*", "*状态:*"),
     ("Status:", "状态:"),
@@ -143,7 +157,10 @@ class TelegramCN(Telegram):
 
         cust_keyboard = self._config["telegram"].get("keyboard", [])
         if cust_keyboard:
-            self._keyboard = cust_keyboard
+            self._keyboard = [
+                [KEYBOARD_LABELS.get(str(button), str(button)) for button in row]
+                for row in cust_keyboard
+            ]
             logger.info("using custom Chinese keyboard from config.json: %s", self._keyboard)
 
     def _init(self) -> None:

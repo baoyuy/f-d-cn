@@ -578,10 +578,13 @@ CONF_SCHEMA = {
                     "default": True,
                 },
                 "language": {
-                    "description": "Telegram language. Use `zh` for Chinese commands and replies.",
+                    "description": (
+                        "Telegram language. Use `zh` for Chinese commands and replies. "
+                        "This Chinese build defaults to `zh`."
+                    ),
                     "type": "string",
                     "enum": ["en", "zh"],
-                    "default": "en",
+                    "default": "zh",
                 },
                 "balance_dust_level": {
                     "description": "Minimum balance level to consider as dust.",
