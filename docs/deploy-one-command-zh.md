@@ -16,7 +16,7 @@ curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_u
   | sudo env REPO_URL="https://github.com/baoyuy/f-d-cn.git" BRANCH="main" bash
 ```
 
-这同一条命令同时负责首次部署和后续更新。已经部署过时，重复执行它会自动拉取最新代码、重建 Docker 镜像并重启容器；已有配置文件会保留，不会覆盖。
+这同一条命令同时负责首次部署、后续更新和配置修改后的重启。已经部署过时，重复执行它会自动判断状态：代码有更新才拉取并重建 Docker 镜像；代码没变化时只快速重启现有容器。已有配置文件会保留，不会覆盖。
 
 这个命令会自动完成：
 
@@ -27,6 +27,8 @@ curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_u
 - 执行官方初始化命令 `freqtrade create-userdir --userdir user_data`。
 - 生成非交互的默认 `user_data/config.json`。
 - 启动 `freqtrade-cn` 容器。
+
+已经部署过的服务器会跳过已安装的基础工具和 Docker。没有代码更新时，也会跳过镜像构建，只重启现有容器。
 
 ## 私有仓库部署
 
@@ -93,7 +95,7 @@ docker compose run --rm freqtrade new-config --config user_data/config.json
 
 ## 更新和重启
 
-更新代码、重建镜像和重启容器不需要另一套命令。继续执行首次部署时的同一条一键部署命令：
+更新代码、重建镜像和重启容器不需要另一套命令。改完 `config.json` 后，也继续执行首次部署时的同一条一键部署命令：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_ubuntu_docker.sh \
@@ -103,7 +105,8 @@ curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_u
 脚本会自动判断 `/opt/freqtrade-cn` 是否已经是 Git 仓库：
 
 - 首次部署：克隆仓库、初始化 `user_data`、生成默认配置、启动容器。
-- 再次执行：拉取最新代码、保留已有配置、重建镜像、重启容器。
+- 再次执行且代码有更新：拉取最新代码、保留已有配置、重建镜像、重启容器。
+- 再次执行但代码没变化：跳过基础工具安装、跳过初始化、跳过镜像构建，只快速重启现有容器。
 
 ## 常用维护命令
 

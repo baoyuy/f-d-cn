@@ -8,6 +8,9 @@ BRANCH="${BRANCH:-main}"
 API_PORT="${API_PORT:-8080}"
 STRATEGY="${STRATEGY:-SampleStrategy}"
 IMAGE_NAME="${IMAGE_NAME:-freqtrade-cn:local}"
+SOURCE_CHANGED=0
+COMPOSE_CHANGED=0
+IMAGE_BUILT=0
 
 log() {
     printf '\n[%s] %s\n' "$APP_NAME" "$1"
@@ -44,6 +47,20 @@ detect_os() {
 }
 
 install_base_packages() {
+    local missing=0
+
+    for cmd in curl git gpg lsb_release; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            missing=1
+            break
+        fi
+    done
+
+    if [ "$missing" -eq 0 ] && [ -r /etc/ssl/certs/ca-certificates.crt ]; then
+        log "检测到基础工具已安装，跳过 apt 安装"
+        return
+    fi
+
     log "安装基础工具"
     apt-get update
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -111,13 +128,24 @@ prepare_source() {
             --exclude='./__pycache__' \
             --exclude='./user_data' \
             -cf - . | tar -xf - -C "$INSTALL_DIR"
+        SOURCE_CHANGED=1
         return
     fi
 
     if [ -d "$INSTALL_DIR/.git" ]; then
+        local before_head
+        local after_head
+        before_head="$(git -C "$INSTALL_DIR" rev-parse HEAD 2>/dev/null || true)"
         git -C "$INSTALL_DIR" fetch origin "$BRANCH"
         git -C "$INSTALL_DIR" checkout "$BRANCH"
         git -C "$INSTALL_DIR" pull --ff-only origin "$BRANCH"
+        after_head="$(git -C "$INSTALL_DIR" rev-parse HEAD 2>/dev/null || true)"
+        if [ "$before_head" != "$after_head" ]; then
+            SOURCE_CHANGED=1
+            log "检测到源码已更新: ${before_head:-unknown} -> ${after_head:-unknown}"
+        else
+            log "源码已经是最新版本"
+        fi
         return
     fi
 
@@ -130,17 +158,17 @@ prepare_source() {
     fi
 
     git clone --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
+    SOURCE_CHANGED=1
 }
 
 write_compose_file() {
     log "生成 docker-compose.yml"
     cd "$INSTALL_DIR"
 
-    if [ -f docker-compose.yml ]; then
-        cp docker-compose.yml "docker-compose.yml.bak.$(date +%Y%m%d_%H%M%S)"
-    fi
+    local compose_tmp
+    compose_tmp="$(mktemp)"
 
-    cat >docker-compose.yml <<EOF
+    cat >"$compose_tmp" <<EOF
 ---
 services:
   freqtrade:
@@ -161,6 +189,19 @@ services:
       --config /freqtrade/user_data/config.json
       --strategy ${STRATEGY}
 EOF
+
+    if [ -f docker-compose.yml ] && cmp -s "$compose_tmp" docker-compose.yml; then
+        rm -f "$compose_tmp"
+        log "docker-compose.yml 未变化"
+        return
+    fi
+
+    if [ -f docker-compose.yml ]; then
+        cp docker-compose.yml "docker-compose.yml.bak.$(date +%Y%m%d_%H%M%S)"
+    fi
+
+    mv "$compose_tmp" docker-compose.yml
+    COMPOSE_CHANGED=1
 }
 
 random_secret() {
@@ -282,20 +323,69 @@ write_default_config() {
 EOF
 }
 
+image_exists() {
+    docker image inspect "$IMAGE_NAME" >/dev/null 2>&1
+}
+
+needs_build() {
+    if [ "$SOURCE_CHANGED" -eq 1 ] || [ "$COMPOSE_CHANGED" -eq 1 ] || ! image_exists; then
+        return 0
+    fi
+    return 1
+}
+
+build_image_if_needed() {
+    if needs_build; then
+        log "构建 Docker 镜像"
+        cd "$INSTALL_DIR"
+        docker compose build
+        IMAGE_BUILT=1
+    else
+        log "源码、Compose 配置和镜像均未变化，跳过镜像构建"
+    fi
+}
+
 initialize_user_data() {
-    log "构建镜像并执行官方 user_data 初始化"
+    log "检查 user_data 初始化状态"
     cd "$INSTALL_DIR"
-    docker compose build
-    docker compose run --rm freqtrade create-userdir --userdir user_data
+
+    if [ ! -d user_data ]; then
+        build_image_if_needed
+        log "执行官方 user_data 初始化"
+        docker compose run --rm freqtrade create-userdir --userdir user_data
+    else
+        log "检测到已有 user_data，跳过官方初始化"
+    fi
+
     write_default_config
     mkdir -p user_data/logs
     chown -R 1000:1000 user_data
 }
 
 start_bot() {
-    log "启动 Freqtrade 容器"
     cd "$INSTALL_DIR"
-    docker compose up -d --build
+
+    local container_id
+    container_id="$(docker compose ps -q freqtrade 2>/dev/null || true)"
+
+    if needs_build; then
+        if [ "$IMAGE_BUILT" -eq 1 ]; then
+            log "启动 Freqtrade 容器"
+            docker compose up -d
+        else
+            log "源码或部署配置有变化，重建并启动 Freqtrade 容器"
+            docker compose up -d --build
+        fi
+        return
+    fi
+
+    if [ -n "$container_id" ]; then
+        log "配置可能已调整，快速重启现有容器"
+        docker compose restart freqtrade
+    else
+        log "容器不存在，启动 Freqtrade 容器"
+        docker compose up -d
+    fi
 }
 
 print_summary() {
@@ -317,7 +407,7 @@ print_summary() {
 
 更新代码并重启:
   再次执行首次部署时使用的同一条一键部署命令即可。
-  脚本会自动拉取 ${BRANCH} 分支、重建镜像，并重启容器。
+  脚本会自动判断是否需要安装依赖、拉取代码、重建镜像，没变化时只快速重启容器。
 
 注意:
   默认是 dry_run: true，不会真实下单。
