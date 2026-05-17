@@ -35,6 +35,32 @@ def test_telegram_cn_translates_common_labels(telegram_cn) -> None:
     assert "*浮动收益:* `1.00%`" in translated
 
 
+def test_telegram_cn_translates_common_statistics_text(telegram_cn) -> None:
+    message = (
+        "<b>Daily Profit over the last 7 days</b>:\n"
+        "Day (count)  Profit %  Trades\n"
+        "*Total Trade Count:* `3`\n"
+        "*Win / Loss:* `2 / 1`\n"
+        "*Avg. Duration:* `1:20:00`\n"
+        "*Estimated Value (Bot managed assets only)*:\n"
+        "Available: 1.0\n"
+        "Updated: now"
+    )
+
+    translated = telegram_cn._zh_text(message)
+
+    assert "<b>最近 7 天每日收益</b>:" in translated
+    assert "日期 (交易数)" in translated
+    assert "收益 %" in translated
+    assert "交易数" in translated
+    assert "*总交易数:* `3`" in translated
+    assert "*盈利 / 亏损:* `2 / 1`" in translated
+    assert "*平均持仓时长:* `1:20:00`" in translated
+    assert "*预估价值 (仅机器人管理资产)*:" in translated
+    assert "可用: 1.0" in translated
+    assert "更新时间: now" in translated
+
+
 def test_telegram_cn_normalizes_market_direction_args(telegram_cn) -> None:
     assert telegram_cn._normalize_market_direction_args(["做多"]) == ["long"]
     assert telegram_cn._normalize_market_direction_args(["做空"]) == ["short"]

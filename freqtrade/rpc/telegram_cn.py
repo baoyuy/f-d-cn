@@ -9,6 +9,7 @@ friendly wrapper around commands, keyboard labels, and outgoing messages.
 
 import asyncio
 import logging
+import re
 from copy import deepcopy
 from datetime import datetime
 from functools import partial
@@ -40,6 +41,8 @@ STATUS_WORDS = {
     "stopped": "已停止",
     "paused": "已暂停",
     "reloading config": "正在重载配置",
+    "process died": "进程已退出",
+    "stopping": "正在停止",
 }
 
 
@@ -58,6 +61,13 @@ KEYBOARD_LABELS = {
 
 
 TEXT_REPLACEMENTS = (
+    ("<b>Performance:</b>", "<b>交易对表现:</b>"),
+    ("<b>Entry Tag Performance:</b>", "<b>入场标签表现:</b>"),
+    ("<b>Exit Reason Performance:</b>", "<b>出场原因表现:</b>"),
+    ("<b>Mix Tag Performance:</b>", "<b>标签组合表现:</b>"),
+    ("*Entry Tag Performance:*", "*入场标签表现:*"),
+    ("*Exit Reason Performance:*", "*出场原因表现:*"),
+    ("*Mix Tag Performance:*", "*标签组合表现:*"),
     ("*Status:*", "*状态:*"),
     ("Status:", "状态:"),
     ("*Warning:*", "*警告:*"),
@@ -120,14 +130,59 @@ TEXT_REPLACEMENTS = (
     ("*Current state:*", "*当前状态:*"),
     ("*Version:*", "*版本:*"),
     ("*Strategy version: *", "*策略版本:* "),
+    ("*Candle OHLC*:", "*K线 OHLC*:"),
+    ("*ROI:* Closed long trades", "*收益率:* 已平仓多单"),
+    ("*ROI:* Closed short trades", "*收益率:* 已平仓空单"),
+    ("*ROI:* Closed trades", "*收益率:* 已平仓交易"),
+    ("*ROI:* All long trades", "*收益率:* 全部多单"),
+    ("*ROI:* All short trades", "*收益率:* 全部空单"),
+    ("*ROI:* All trades", "*收益率:* 全部交易"),
+    ("*Total Trade Count:*", "*总交易数:*"),
+    ("*Bot started:*", "*机器人启动时间:*"),
+    ("*First Trade opened:*", "*第一笔交易开仓:*"),
+    ("*Showing Profit since:*", "*显示该时间后的收益:*"),
+    ("*Latest Trade opened:*", "*最近交易开仓:*"),
+    ("*Win / Loss:*", "*盈利 / 亏损:*"),
+    ("*Winrate:*", "*胜率:*"),
+    ("*Expectancy (Ratio):*", "*期望值 (比率):*"),
+    ("*Avg. Duration:*", "*平均持仓时长:*"),
+    ("*Best Performing:*", "*最佳交易对:*"),
+    ("*Trading volume:*", "*交易量:*"),
+    ("*Profit factor:*", "*盈利因子:*"),
+    ("*Max Drawdown:*", "*最大回撤:*"),
+    ("*Current Drawdown:*", "*当前回撤:*"),
+    ("*Estimated Value (Bot managed assets only)*", "*预估价值 (仅机器人管理资产)*"),
+    ("*Estimated Value*", "*预估价值*"),
+    ("*Force exit canceled.*", "*强制退出已取消。*"),
     ("Last process:", "最近处理:"),
     ("Initial bot start:", "机器人首次启动:"),
     ("Last bot restart:", "机器人最近重启:"),
+    ("Dry run is enabled. All trades are simulated.", "Dry-run 已启用，所有交易都是模拟交易。"),
+    ("Searching for", "正在查找"),
+    ("pairs to buy and sell based on", "个可买卖交易对，规则来自"),
+    ("No trades yet.", "还没有交易。"),
+    ("No long trades yet.", "还没有多单交易。"),
+    ("No short trades yet.", "还没有空单交易。"),
+    ("`No closed trade`", "`还没有已平仓交易`"),
+    ("`No closed long trade`", "`还没有已平仓多单`"),
+    ("`No closed short trade`", "`还没有已平仓空单`"),
     ("No open trade found.", "没有找到未平仓交易。"),
     ("Which trade?", "选择哪一笔交易？"),
     ("Which pair?", "选择哪个交易对？"),
+    ("Cancel", "取消"),
+    ("Force exit canceled.", "强制退出已取消。"),
+    ("Force enter canceled.", "强制入场已取消。"),
+    ("Manually exiting Trade", "正在手动退出交易"),
+    ("Manually entering", "正在手动入场"),
+    ("Trade-id not set.", "没有设置交易 ID。"),
+    ("Trade ", "交易 "),
+    (" not found.", " 未找到。"),
     ("Open order canceled.", "未完成订单已取消。"),
+    ("Please make sure to take care of this asset on the exchange manually.",
+     "请确认你已在交易所手动处理这项资产。"),
     ("No active locks.", "当前没有生效的锁定。"),
+    ("Using whitelist", "正在使用白名单"),
+    ("with", "包含"),
     ("Blacklist contains", "黑名单包含"),
     ("pairs", "个交易对"),
     ("Whitelist contains", "白名单包含"),
@@ -136,12 +191,61 @@ TEXT_REPLACEMENTS = (
     ("Invalid market direction provided.", "提供的市场方向无效。"),
     ("Valid market directions:", "可用市场方向:"),
     ("Invalid usage of command /marketdir.", "市场方向命令用法无效。"),
+    ("Exit Signal", "出场信号"),
+    ("Force Exit", "强制退出"),
+    ("Emergency Exit", "紧急退出"),
+    ("Trail. Stop", "移动止损"),
+    ("Stoploss", "止损"),
     ("Usage:", "用法:"),
     ("Found custom-data entries:", "找到自定义数据:"),
     ("Found custom-data entry:", "找到自定义数据:"),
     ("Didn't find any custom-data entries for Trade ID:", "没有找到该交易 ID 的自定义数据:"),
+    ("and Key:", "和键:"),
+    ("*Key:*", "*键:*"),
+    ("*Value:*", "*值:*"),
+    ("*Type:*", "*类型:*"),
+    ("*Created:*", "*创建时间:*"),
+    ("*Updated:*", "*更新时间:*"),
     ("Message dropped because length exceeds", "消息因超过长度限制已丢弃"),
     ("maximum allowed characters:", "最大允许字符数:"),
+    ("Simulated balances in Dry Mode.", "当前为 Dry-run 模式，余额为模拟值。"),
+    ("Starting capital:", "初始资金:"),
+    ("Available:", "可用:"),
+    ("Balance:", "余额:"),
+    ("Pending:", "挂单占用:"),
+    ("Bot Owned:", "机器人持有:"),
+    ("Est.", "预估"),
+    ("Other Currencies", "其他币种"),
+    ("Other Currency", "其他币种"),
+    ("Day (count)", "日期 (交易数)"),
+    ("Monday (count)", "周一 (交易数)"),
+    ("Month (count)", "月份 (交易数)"),
+    ("Profit %", "收益 %"),
+    ("Trades", "交易数"),
+    ("Close Date", "平仓时间"),
+    ("Pair (ID L/S)", "交易对 (ID 多/空)"),
+    ("Pair (ID)", "交易对 (ID)"),
+    ("Profit (", "收益 ("),
+    ("Total", "合计"),
+    ("(incl. realized Profits)", "(包含已实现收益)"),
+    ("current", "当前"),
+    ("max", "最大"),
+    ("total stake", "总投入"),
+    ("Exit Reason", "出场原因"),
+    ("Exits", "出场次数"),
+    ("Wins", "盈利"),
+    ("Losses", "亏损"),
+    ("Avg. Duration", "平均持仓时长"),
+    ("Until", "截至"),
+    ("Reason", "原因"),
+    ("Entry", "入场"),
+    ("Exit", "出场"),
+    ("Average Entry Price", "平均入场价格"),
+    ("Average Exit Price", "平均出场价格"),
+    ("from 1st entry rate", "相对首次入场价"),
+    ("Updated:", "更新时间:"),
+    ("Refresh", "刷新"),
+    ("N/A", "无"),
 )
 
 
@@ -515,7 +619,7 @@ class TelegramCN(Telegram):
                 [[InlineKeyboardButton("刷新", callback_data=callback_path)]]
             )
         elif keyboard is not None:
-            reply_markup = InlineKeyboardMarkup(keyboard)
+            reply_markup = InlineKeyboardMarkup(self._zh_inline_keyboard(keyboard))
         else:
             reply_markup = ReplyKeyboardMarkup(self._keyboard, resize_keyboard=True)
         try:
@@ -579,8 +683,57 @@ class TelegramCN(Telegram):
             return ""
 
         translated = msg
+        translated = re.sub(
+            r"<b>(\d+) recent trades</b>:",
+            r"<b>最近 \1 笔交易</b>:",
+            translated,
+        )
+        translated = re.sub(
+            r"<b>Daily Profit over the last (\d+) days</b>:",
+            r"<b>最近 \1 天每日收益</b>:",
+            translated,
+        )
+        translated = re.sub(
+            r"<b>Weekly Profit over the last (\d+) weeks \(starting from Monday\)</b>:",
+            r"<b>最近 \1 周收益 (从周一开始)</b>:",
+            translated,
+        )
+        translated = re.sub(
+            r"<b>Monthly Profit over the last (\d+) months</b>:",
+            r"<b>最近 \1 月收益</b>:",
+            translated,
+        )
+        translated = re.sub(
+            r"(\d+) recent trades",
+            r"最近 \1 笔交易",
+            translated,
+        )
+        translated = re.sub(
+            r"\bfrom `([^`]+)`",
+            r"从 `\1`",
+            translated,
+        )
+        translated = re.sub(
+            r"\bto `([^`]+)`",
+            r"到 `\1`",
+            translated,
+        )
         for source, target in TEXT_REPLACEMENTS:
             translated = translated.replace(source, target)
         for source, target in STATUS_WORDS.items():
             translated = translated.replace(f"`{source}`", f"`{target}`")
         return translated
+
+    def _zh_inline_keyboard(
+        self, keyboard: list[list[InlineKeyboardButton]]
+    ) -> list[list[InlineKeyboardButton]]:
+        return [
+            [
+                InlineKeyboardButton(
+                    text=self._zh_text(button.text),
+                    callback_data=button.callback_data,
+                )
+                for button in row
+            ]
+            for row in keyboard
+        ]
