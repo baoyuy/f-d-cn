@@ -72,7 +72,7 @@ bash -c 'tmp="$(mktemp -d)" && GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=acc
 - 默认交易模式：`dry_run: true`
 - 默认交易所：`binance`
 - 默认交易对：`BTC/USDT`、`ETH/USDT`
-- 默认策略：`SampleStrategy`
+- 默认策略：`CnTrendPullbackStrategy`
 - Telegram 默认关闭，但配置里已写入 `"language": "zh"`
 - API 默认只映射到宿主机本地地址：`127.0.0.1:8080`
 
@@ -87,7 +87,7 @@ curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_u
       BRANCH="main" \
       INSTALL_DIR="/opt/freqtrade-cn" \
       API_PORT="8080" \
-      STRATEGY="SampleStrategy" \
+      STRATEGY="CnTrendPullbackStrategy" \
       IMAGE_NAME="freqtrade-cn:local" \
       bash
 ```
@@ -98,7 +98,7 @@ curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_u
 - `BRANCH`：部署分支，默认 `main`。
 - `INSTALL_DIR`：部署目录，默认 `/opt/freqtrade-cn`。
 - `API_PORT`：宿主机本地 API 端口，默认 `8080`。
-- `STRATEGY`：启动策略，默认 `SampleStrategy`。
+- `STRATEGY`：启动策略，默认 `CnTrendPullbackStrategy`。
 - `IMAGE_NAME`：本地 Docker 镜像名，默认 `freqtrade-cn:local`。
 - `TELEGRAM_ENABLED`：是否启用 Telegram，传 `true` 会开启。
 - `TELEGRAM_TOKEN`：完整 Telegram Bot Token，格式必须是 `机器人ID:密钥`。
@@ -117,6 +117,25 @@ docker compose run --rm freqtrade new-config --config user_data/config.json
 一键部署脚本会自动执行 `create-userdir`。`new-config` 是交互式命令，不适合无人值守部署，所以脚本会生成一个默认配置文件。
 
 如果 `/opt/freqtrade-cn/user_data/config.json` 已经存在，脚本会保留原配置，不会覆盖。
+
+## 新手配置向导
+
+部署完成后，可以使用交互式向导调整常用配置：
+
+```bash
+cd /opt/freqtrade-cn
+python3 scripts/configure_beginner.py --config user_data/config.json
+docker compose restart freqtrade
+```
+
+向导会引导设置策略名、K 线周期、每笔投入金额、交易对和 Telegram 中文机器人。保存前会自动备份原 `config.json`。默认保持 `dry_run: true`，除非你输入明确的实盘风险确认。
+
+如果只想写入安全默认值，不进入交互提问，可以执行：
+
+```bash
+cd /opt/freqtrade-cn
+python3 scripts/configure_beginner.py --config user_data/config.json --yes
+```
 
 ## 更新和重启
 

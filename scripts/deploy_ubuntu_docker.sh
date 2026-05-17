@@ -6,7 +6,7 @@ INSTALL_DIR="${INSTALL_DIR:-/opt/freqtrade-cn}"
 REPO_URL="${REPO_URL:-}"
 BRANCH="${BRANCH:-main}"
 API_PORT="${API_PORT:-8080}"
-STRATEGY="${STRATEGY:-SampleStrategy}"
+STRATEGY="${STRATEGY:-CnTrendPullbackStrategy}"
 IMAGE_NAME="${IMAGE_NAME:-freqtrade-cn:local}"
 TELEGRAM_ENABLED="${TELEGRAM_ENABLED:-}"
 TELEGRAM_TOKEN="${TELEGRAM_TOKEN:-}"
@@ -133,6 +133,14 @@ prepare_source() {
             --exclude='./__pycache__' \
             --exclude='./user_data' \
             -cf - . | tar -xf - -C "$INSTALL_DIR"
+        if [ -d "${source_dir}/user_data/strategies" ]; then
+            mkdir -p "$INSTALL_DIR/user_data/strategies"
+            find "${source_dir}/user_data/strategies" \
+                -maxdepth 1 \
+                -type f \
+                -name '*.py' \
+                -exec cp {} "$INSTALL_DIR/user_data/strategies/" \;
+        fi
         SOURCE_CHANGED=1
         return
     fi
@@ -246,13 +254,16 @@ write_default_config() {
     "margin_mode": "",
     "timeframe": "5m",
     "minimal_roi": {
-        "0": 0.04,
-        "20": 0.02,
-        "30": 0.01,
-        "40": 0.0
+        "120": 0.0,
+        "60": 0.01,
+        "30": 0.02,
+        "0": 0.04
     },
-    "stoploss": -0.10,
-    "trailing_stop": false,
+    "stoploss": -0.08,
+    "trailing_stop": true,
+    "trailing_stop_positive": 0.015,
+    "trailing_stop_positive_offset": 0.03,
+    "trailing_only_offset_is_reached": true,
     "unfilledtimeout": {
         "entry": 10,
         "exit": 10,
@@ -430,7 +441,7 @@ initialize_user_data() {
     log "检查 user_data 初始化状态"
     cd "$INSTALL_DIR"
 
-    if [ ! -d user_data ]; then
+    if [ ! -d user_data ] || [ ! -d user_data/strategies ] || [ ! -d user_data/logs ]; then
         build_image_if_needed
         log "执行官方 user_data 初始化"
         docker compose run --rm freqtrade create-userdir --userdir user_data

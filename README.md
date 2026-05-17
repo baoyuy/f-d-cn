@@ -76,6 +76,7 @@ We invite you to read the bot documentation to ensure you understand how the bot
 Please find the complete documentation on the [freqtrade website](https://www.freqtrade.io).
 
 中文定制版部署教程请看 [Ubuntu/Debian 一键部署](docs/deploy-one-command-zh.md)。
+Telegram 中文指令请看 [Telegram 中文指令](docs/telegram-commands-zh.md)。
 
 ## Features
 
@@ -135,9 +136,15 @@ bash -c 'tmp="$(mktemp -d)" && GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=acc
 - 部署目录：`/opt/freqtrade-cn`
 - 默认交易所：`binance`
 - 默认交易模式：`dry_run: true`
-- 默认策略：`SampleStrategy`
+- 默认策略：`CnTrendPullbackStrategy`
 - Telegram 默认关闭，但配置里已写入 `"language": "zh"`
 - API 仅绑定宿主机本地地址：`127.0.0.1:8080`
+
+需要交互式生成或调整新手配置时，可以在部署目录运行：
+
+```bash
+python3 scripts/configure_beginner.py --config user_data/config.json
+```
 
 部署完成后常用命令：
 
