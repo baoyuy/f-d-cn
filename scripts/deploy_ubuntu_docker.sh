@@ -8,6 +8,10 @@ BRANCH="${BRANCH:-main}"
 API_PORT="${API_PORT:-8080}"
 STRATEGY="${STRATEGY:-SampleStrategy}"
 IMAGE_NAME="${IMAGE_NAME:-freqtrade-cn:local}"
+TELEGRAM_ENABLED="${TELEGRAM_ENABLED:-}"
+TELEGRAM_TOKEN="${TELEGRAM_TOKEN:-}"
+TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-}"
+TELEGRAM_LANGUAGE="${TELEGRAM_LANGUAGE:-zh}"
 SOURCE_CHANGED=0
 COMPOSE_CHANGED=0
 IMAGE_BUILT=0
@@ -49,7 +53,7 @@ detect_os() {
 install_base_packages() {
     local missing=0
 
-    for cmd in curl git gpg lsb_release; do
+    for cmd in curl git gpg lsb_release python3; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             missing=1
             break
@@ -68,7 +72,8 @@ install_base_packages() {
         curl \
         git \
         gnupg \
-        lsb-release
+        lsb-release \
+        python3
 }
 
 install_docker() {
@@ -323,6 +328,82 @@ write_default_config() {
 EOF
 }
 
+normalize_telegram_config() {
+    local config_file="${INSTALL_DIR}/user_data/config.json"
+
+    if [ ! -f "$config_file" ]; then
+        fail "找不到配置文件: ${config_file}"
+    fi
+
+    if [ -n "$TELEGRAM_TOKEN" ] || [ -n "$TELEGRAM_CHAT_ID" ] || [ -n "$TELEGRAM_ENABLED" ]; then
+        log "根据环境变量更新 Telegram 配置"
+    else
+        log "检查 Telegram 配置"
+    fi
+
+    CONFIG_FILE="$config_file" \
+    TELEGRAM_ENABLED="$TELEGRAM_ENABLED" \
+    TELEGRAM_TOKEN="$TELEGRAM_TOKEN" \
+    TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID" \
+    TELEGRAM_LANGUAGE="$TELEGRAM_LANGUAGE" \
+    python3 <<'PY'
+import json
+import os
+import re
+import sys
+from pathlib import Path
+
+config_file = Path(os.environ["CONFIG_FILE"])
+
+try:
+    config = json.loads(config_file.read_text(encoding="utf-8"))
+except json.JSONDecodeError as exc:
+    print(f"config.json 不是合法 JSON: {exc}", file=sys.stderr)
+    sys.exit(2)
+
+telegram = config.setdefault("telegram", {})
+telegram.setdefault("language", "zh")
+
+language = os.environ.get("TELEGRAM_LANGUAGE") or "zh"
+if language not in {"zh", "en"}:
+    print("TELEGRAM_LANGUAGE 只能是 zh 或 en。", file=sys.stderr)
+    sys.exit(2)
+telegram["language"] = language
+
+enabled = os.environ.get("TELEGRAM_ENABLED", "")
+token = os.environ.get("TELEGRAM_TOKEN", "")
+chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
+
+if token:
+    telegram["token"] = token
+if chat_id:
+    telegram["chat_id"] = chat_id
+if enabled:
+    telegram["enabled"] = enabled.lower() in {"1", "true", "yes", "on", "y"}
+elif token and chat_id:
+    telegram["enabled"] = True
+
+if telegram.get("enabled"):
+    token_value = str(telegram.get("token", "")).strip()
+    chat_value = str(telegram.get("chat_id", "")).strip()
+    if not re.match(r"^\d+:[A-Za-z0-9_-]+$", token_value):
+        print(
+            "Telegram token 格式错误。必须填写完整 token，格式是 机器人ID:密钥，"
+            "不能只填冒号后面的密钥。",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    if not re.match(r"^-?\d+$", chat_value):
+        print("Telegram chat_id 格式错误。必须是纯数字，例如 6767391336。", file=sys.stderr)
+        sys.exit(2)
+
+config_file.write_text(
+    json.dumps(config, ensure_ascii=False, indent=4) + "\n",
+    encoding="utf-8",
+)
+PY
+}
+
 image_exists() {
     docker image inspect "$IMAGE_NAME" >/dev/null 2>&1
 }
@@ -358,6 +439,7 @@ initialize_user_data() {
     fi
 
     write_default_config
+    normalize_telegram_config
     mkdir -p user_data/logs
     chown -R 1000:1000 user_data
 }
@@ -411,7 +493,8 @@ print_summary() {
 
 注意:
   默认是 dry_run: true，不会真实下单。
-  Telegram 默认关闭。启用前请编辑 config.json，填写 token/chat_id，并保留 language: "zh"。
+  Telegram 默认关闭。可以编辑 config.json，也可以在一键命令里传入 TELEGRAM_TOKEN 和 TELEGRAM_CHAT_ID。
+  token 必须是完整格式: 机器人ID:密钥；chat_id 必须是聊天 ID，不是 bot id。
   API 只映射到宿主机 127.0.0.1:${API_PORT}，不要直接暴露到公网。
 EOF
 }

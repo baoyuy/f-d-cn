@@ -111,6 +111,19 @@ curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_u
 
 这同一条命令同时用于首次部署、后续更新和配置修改后的重启。服务器已经部署过时，重复执行它会自动判断状态：代码有更新才拉取并重建镜像；代码没变化时只快速重启现有容器。已有 `user_data/config.json` 会保留，不会被覆盖。
 
+需要同时启用 Telegram 中文版时，可以在同一条命令里传入完整 token 和 chat id：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_ubuntu_docker.sh \
+  | sudo env \
+      REPO_URL="https://github.com/baoyuy/f-d-cn.git" \
+      BRANCH="main" \
+      TELEGRAM_ENABLED="true" \
+      TELEGRAM_TOKEN="机器人ID:密钥" \
+      TELEGRAM_CHAT_ID="你的 Chat ID" \
+      bash
+```
+
 如果本仓库是私有仓库，`raw.githubusercontent.com` 不能匿名读取。请先在服务器配置能访问该仓库的 GitHub SSH key 或凭据，然后使用：
 
 ```bash

@@ -30,6 +30,27 @@ curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_u
 
 已经部署过的服务器会跳过已安装的基础工具和 Docker。没有代码更新时，也会跳过镜像构建，只重启现有容器。
 
+## 一键启用 Telegram 中文版
+
+如果你已经拿到 Telegram Bot Token 和 chat id，可以在部署时直接传入环境变量：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_ubuntu_docker.sh \
+  | sudo env \
+      REPO_URL="https://github.com/baoyuy/f-d-cn.git" \
+      BRANCH="main" \
+      TELEGRAM_ENABLED="true" \
+      TELEGRAM_TOKEN="机器人ID:密钥" \
+      TELEGRAM_CHAT_ID="你的 Chat ID" \
+      bash
+```
+
+脚本会自动写入 `/opt/freqtrade-cn/user_data/config.json` 并校验：
+
+- `TELEGRAM_TOKEN` 必须是完整格式：`机器人ID:密钥`。
+- `TELEGRAM_CHAT_ID` 必须是聊天 ID，例如个人私聊 ID，不是 bot id。
+- Telegram 语言固定写入 `zh`，除非显式传入 `TELEGRAM_LANGUAGE="en"`。
+
 ## 私有仓库部署
 
 如果仓库是私有仓库，`raw.githubusercontent.com` 不能匿名下载脚本。先给服务器配置能访问该仓库的 GitHub SSH key 或 deploy key，然后执行：
@@ -79,6 +100,10 @@ curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_u
 - `API_PORT`：宿主机本地 API 端口，默认 `8080`。
 - `STRATEGY`：启动策略，默认 `SampleStrategy`。
 - `IMAGE_NAME`：本地 Docker 镜像名，默认 `freqtrade-cn:local`。
+- `TELEGRAM_ENABLED`：是否启用 Telegram，传 `true` 会开启。
+- `TELEGRAM_TOKEN`：完整 Telegram Bot Token，格式必须是 `机器人ID:密钥`。
+- `TELEGRAM_CHAT_ID`：Telegram chat id。
+- `TELEGRAM_LANGUAGE`：Telegram 语言，默认 `zh`。
 
 ## 初始化行为
 
