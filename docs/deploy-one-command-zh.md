@@ -1,82 +1,125 @@
-# Ubuntu/Debian 一键部署
+# Ubuntu/Debian 一键部署中文定制版
 
-这个脚本用于把中文化版 Freqtrade 部署到全新的 Ubuntu/Debian 服务器，或者已经使用过一段时间的 Ubuntu/Debian 服务器。
+本文档适用于本仓库的中文定制版 Freqtrade。脚本会使用 Docker Compose 部署，适合全新 Ubuntu/Debian 服务器，也适合已经使用过一段时间、但没有在目标目录部署过本项目的服务器。
 
-部署方式使用 Docker Compose。脚本会自动安装 Docker、拉取源码、构建本地镜像、执行官方 `create-userdir` 初始化，并生成非交互的 dry-run 默认配置。
+!!! Warning "风险说明"
+    本仓库是基于 Freqtrade 的非官方中文定制版，不代表 Freqtrade 官方团队。请保留原项目许可证和版权声明，并遵守 GPL-3.0 license、交易所规则和当地法律法规。
 
-## 一键命令
+    默认配置为 `dry_run: true`，不会真实下单。切换实盘前，请先确认策略、交易对、API key 权限、止损、仓位和服务器安全。
 
-把下面的仓库地址换成你自己的中文化仓库地址：
+## 一键部署命令
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/<你的账号>/<你的仓库>/<分支>/scripts/deploy_ubuntu_docker.sh \
-  | sudo env REPO_URL="https://github.com/<你的账号>/<你的仓库>.git" BRANCH="<分支>" bash
-```
-
-使用 `curl | bash` 方式时必须传入 `REPO_URL`，否则脚本会拒绝部署，避免误装官方原版。
-
-如果源码已经在服务器上，也可以在仓库根目录运行：
+公开仓库可以直接执行：
 
 ```bash
-sudo bash scripts/deploy_ubuntu_docker.sh
+curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_ubuntu_docker.sh \
+  | sudo env REPO_URL="https://github.com/baoyuy/f-d-cn.git" BRANCH="main" bash
 ```
 
-## 默认行为
+这个命令会自动完成：
+
+- 安装基础工具：`curl`、`git`、`gnupg` 等。
+- 安装 Docker Engine 和 Docker Compose 插件。
+- 拉取 `https://github.com/baoyuy/f-d-cn.git` 的 `main` 分支。
+- 构建本地 Docker 镜像。
+- 执行官方初始化命令 `freqtrade create-userdir --userdir user_data`。
+- 生成非交互的默认 `user_data/config.json`。
+- 启动 `freqtrade-cn` 容器。
+
+## 私有仓库部署
+
+如果仓库是私有仓库，`raw.githubusercontent.com` 不能匿名下载脚本。先给服务器配置能访问该仓库的 GitHub SSH key 或 deploy key，然后执行：
+
+```bash
+bash -c 'tmp="$(mktemp -d)" && GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" git clone --depth 1 --branch main git@github.com:baoyuy/f-d-cn.git "$tmp" && sudo env SSH_AUTH_SOCK="${SSH_AUTH_SOCK:-}" GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" REPO_URL="git@github.com:baoyuy/f-d-cn.git" BRANCH="main" bash "$tmp/scripts/deploy_ubuntu_docker.sh"'
+```
+
+这条命令会把当前 SSH agent 传给 `sudo` 后的部署过程。若服务器没有使用 SSH agent，请给 root 用户单独配置只读 deploy key，或先把仓库改为公开后使用公开仓库部署命令。
+
+不要把 GitHub token 直接写进公开文档、截图或服务器命令历史。必须用 token 时，建议使用最小权限、短有效期的 token，并在部署后立即轮换。
+
+## 默认部署结果
 
 - 部署目录：`/opt/freqtrade-cn`
-- 镜像：本地构建的 `freqtrade-cn:local`
+- Docker 镜像：`freqtrade-cn:local`
 - 容器名：`freqtrade-cn`
 - 配置文件：`/opt/freqtrade-cn/user_data/config.json`
 - 默认交易模式：`dry_run: true`
 - 默认交易所：`binance`
+- 默认交易对：`BTC/USDT`、`ETH/USDT`
 - 默认策略：`SampleStrategy`
 - Telegram 默认关闭，但配置里已写入 `"language": "zh"`
-- API 只映射到宿主机 `127.0.0.1:8080`
+- API 默认只映射到宿主机本地地址：`127.0.0.1:8080`
 
-## 可选环境变量
+## 自定义部署参数
+
+需要换目录、端口、策略或镜像名时，可以通过环境变量覆盖：
 
 ```bash
-sudo env \
-  REPO_URL="https://github.com/<你的账号>/<你的仓库>.git" \
-  BRANCH="main" \
-  INSTALL_DIR="/opt/freqtrade-cn" \
-  API_PORT="8080" \
-  STRATEGY="SampleStrategy" \
-  bash scripts/deploy_ubuntu_docker.sh
+curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_ubuntu_docker.sh \
+  | sudo env \
+      REPO_URL="https://github.com/baoyuy/f-d-cn.git" \
+      BRANCH="main" \
+      INSTALL_DIR="/opt/freqtrade-cn" \
+      API_PORT="8080" \
+      STRATEGY="SampleStrategy" \
+      IMAGE_NAME="freqtrade-cn:local" \
+      bash
 ```
 
-字段说明：
+参数说明：
 
-- `REPO_URL`：你的中文化源码仓库。不要填官方原仓库，否则不会包含中文化改动。
-- `BRANCH`：部署分支，默认 `develop`。
+- `REPO_URL`：源码仓库地址。部署中文定制版时应指向本仓库，不要填官方原仓库。
+- `BRANCH`：部署分支，当前推荐使用 `main`。
 - `INSTALL_DIR`：部署目录，默认 `/opt/freqtrade-cn`。
 - `API_PORT`：宿主机本地 API 端口，默认 `8080`。
 - `STRATEGY`：启动策略，默认 `SampleStrategy`。
+- `IMAGE_NAME`：本地 Docker 镜像名，默认 `freqtrade-cn:local`。
 
-## 初始化说明
+## 初始化行为
 
-官方 Docker 初始化通常是：
+官方 Docker 初始化通常需要手动执行：
 
 ```bash
 docker compose run --rm freqtrade create-userdir --userdir user_data
 docker compose run --rm freqtrade new-config --config user_data/config.json
 ```
 
-本脚本会自动执行 `create-userdir`。`new-config` 是交互式命令，不适合一键部署，所以脚本会直接生成一个安全的 dry-run 默认配置。
+一键部署脚本会自动执行 `create-userdir`。`new-config` 是交互式命令，不适合无人值守部署，所以脚本会生成一个默认配置文件。
 
-如果 `user_data/config.json` 已经存在，脚本不会覆盖。
+如果 `/opt/freqtrade-cn/user_data/config.json` 已经存在，脚本会保留原配置，不会覆盖。
 
-## 常用命令
+## 常用维护命令
+
+查看运行状态：
 
 ```bash
 cd /opt/freqtrade-cn
 docker compose ps
+```
+
+查看日志：
+
+```bash
+cd /opt/freqtrade-cn
 docker compose logs -f
+```
+
+重启机器人：
+
+```bash
+cd /opt/freqtrade-cn
 docker compose restart
+```
+
+停止机器人：
+
+```bash
+cd /opt/freqtrade-cn
 docker compose down
 ```
 
-更新代码并重启：
+更新代码并重新构建：
 
 ```bash
 cd /opt/freqtrade-cn
@@ -86,7 +129,7 @@ docker compose up -d --build
 
 ## 启用 Telegram 中文版
 
-编辑：
+编辑配置文件：
 
 ```bash
 nano /opt/freqtrade-cn/user_data/config.json
@@ -103,15 +146,17 @@ nano /opt/freqtrade-cn/user_data/config.json
 }
 ```
 
-然后重启：
+保存后重启：
 
 ```bash
 cd /opt/freqtrade-cn
 docker compose restart
 ```
 
-## 安全提醒
+## 安全建议
 
-默认配置是 `dry_run: true`，不会真实下单。填入交易所 API key 并切换到实盘前，先确认策略、交易对、风控和止损。
-
-不要把 API 端口直接暴露到公网。脚本默认只绑定 `127.0.0.1`，需要远程访问时建议通过 SSH 隧道或反向代理加认证。
+- 先使用 `dry_run: true` 跑通流程，再考虑实盘。
+- 交易所 API key 不要开启提现权限。
+- 不要把 `/opt/freqtrade-cn/user_data/config.json` 上传到公开仓库。
+- 不要把 API 端口直接暴露到公网。默认只绑定 `127.0.0.1`，远程访问建议使用 SSH 隧道、VPN 或带认证的反向代理。
+- 实盘前先阅读原项目文档：[Freqtrade Documentation](https://www.freqtrade.io)。

@@ -10,6 +10,14 @@ Freqtrade is a free and open source crypto trading bot written in Python. It is 
 
 ![freqtrade](https://raw.githubusercontent.com/freqtrade/freqtrade/develop/docs/assets/freqtrade-screenshot.png)
 
+## 中文定制版说明
+
+本仓库是基于开源项目 [Freqtrade](https://github.com/freqtrade/freqtrade) 的中文定制版本，主要改动集中在 Telegram 交互中文化、默认配置模板和一键部署脚本。
+
+本仓库不是 Freqtrade 官方仓库，也不代表 Freqtrade 官方团队。原项目名称、标识、文档、源码版权和商标权益归原权利人所有。本仓库保留原项目许可证和版权声明，继续遵循原项目使用的 GPL-3.0 license；任何二次分发、部署、商用或公开传播都应同时遵守原项目许可证、交易所规则、当地法律法规以及 GitHub 平台规则。
+
+本仓库不提供投资建议，不承诺收益，也不保证策略适用于实盘。使用者应自行阅读源码、审查配置、理解风险，并先在 `dry_run` 模式下验证。任何交易亏损、API key 泄露、服务器安全问题或合规风险均由使用者自行承担。
+
 ## Disclaimer
 
 This software is for educational purposes only. Do not risk money which
@@ -67,6 +75,8 @@ We invite you to read the bot documentation to ensure you understand how the bot
 
 Please find the complete documentation on the [freqtrade website](https://www.freqtrade.io).
 
+中文定制版部署教程请看 [Ubuntu/Debian 一键部署](docs/deploy-one-command-zh.md)。
+
 ## Features
 
 - [x] **Based on Python 3.11+**: For botting on any operating system - Windows, macOS and Linux.
@@ -84,9 +94,56 @@ Please find the complete documentation on the [freqtrade website](https://www.fr
 
 ## Quick start
 
-Please refer to the [Docker Quickstart documentation](https://www.freqtrade.io/en/stable/docker_quickstart/) on how to get started quickly.
+官方原版快速开始请参考 [Docker Quickstart documentation](https://www.freqtrade.io/en/stable/docker_quickstart/)。
 
 For further (native) installation methods, please refer to the [Installation documentation page](https://www.freqtrade.io/en/stable/installation/).
+
+### 中文定制版一键部署
+
+适用系统：Ubuntu/Debian 服务器。脚本会自动安装 Docker、拉取本仓库源码、构建本地镜像、执行官方 `create-userdir` 初始化，并生成一个安全的 `dry_run: true` 默认配置。
+
+公开仓库可直接运行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_ubuntu_docker.sh \
+  | sudo env REPO_URL="https://github.com/baoyuy/f-d-cn.git" BRANCH="main" bash
+```
+
+如果本仓库是私有仓库，`raw.githubusercontent.com` 不能匿名读取。请先在服务器配置能访问该仓库的 GitHub SSH key 或凭据，然后使用：
+
+```bash
+bash -c 'tmp="$(mktemp -d)" && GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" git clone --depth 1 --branch main git@github.com:baoyuy/f-d-cn.git "$tmp" && sudo env SSH_AUTH_SOCK="${SSH_AUTH_SOCK:-}" GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" REPO_URL="git@github.com:baoyuy/f-d-cn.git" BRANCH="main" bash "$tmp/scripts/deploy_ubuntu_docker.sh"'
+```
+
+默认部署结果：
+
+- 部署目录：`/opt/freqtrade-cn`
+- 默认交易所：`binance`
+- 默认交易模式：`dry_run: true`
+- 默认策略：`SampleStrategy`
+- Telegram 默认关闭，但配置里已写入 `"language": "zh"`
+- API 仅绑定宿主机本地地址：`127.0.0.1:8080`
+
+部署完成后常用命令：
+
+```bash
+cd /opt/freqtrade-cn
+docker compose ps
+docker compose logs -f
+docker compose restart
+docker compose down
+```
+
+启用 Telegram 中文版时，编辑 `/opt/freqtrade-cn/user_data/config.json`，填写自己的 bot token 和 chat id，并保留：
+
+```json
+"telegram": {
+    "enabled": true,
+    "language": "zh",
+    "token": "你的 Telegram Bot Token",
+    "chat_id": "你的 Chat ID"
+}
+```
 
 ## Basic Usage
 
