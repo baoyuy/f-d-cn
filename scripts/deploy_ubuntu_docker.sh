@@ -4,7 +4,7 @@ set -Eeuo pipefail
 APP_NAME="${APP_NAME:-freqtrade-cn}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/freqtrade-cn}"
 REPO_URL="${REPO_URL:-}"
-BRANCH="${BRANCH:-develop}"
+BRANCH="${BRANCH:-main}"
 API_PORT="${API_PORT:-8080}"
 STRATEGY="${STRATEGY:-SampleStrategy}"
 IMAGE_NAME="${IMAGE_NAME:-freqtrade-cn:local}"
@@ -316,7 +316,8 @@ print_summary() {
   cd ${INSTALL_DIR} && docker compose down
 
 更新代码并重启:
-  cd ${INSTALL_DIR} && git pull --ff-only && docker compose up -d --build
+  再次执行首次部署时使用的同一条一键部署命令即可。
+  脚本会自动拉取 ${BRANCH} 分支、重建镜像，并重启容器。
 
 注意:
   默认是 dry_run: true，不会真实下单。

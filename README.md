@@ -109,6 +109,8 @@ curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_u
   | sudo env REPO_URL="https://github.com/baoyuy/f-d-cn.git" BRANCH="main" bash
 ```
 
+这同一条命令同时用于首次部署和后续更新。服务器已经部署过时，重复执行它会自动拉取最新代码、重建镜像并重启容器；已有 `user_data/config.json` 会保留，不会被覆盖。
+
 如果本仓库是私有仓库，`raw.githubusercontent.com` 不能匿名读取。请先在服务器配置能访问该仓库的 GitHub SSH key 或凭据，然后使用：
 
 ```bash
@@ -133,6 +135,8 @@ docker compose logs -f
 docker compose restart
 docker compose down
 ```
+
+后续更新不要换另一套命令，继续执行上面的一键部署命令即可。
 
 启用 Telegram 中文版时，编辑 `/opt/freqtrade-cn/user_data/config.json`，填写自己的 bot token 和 chat id，并保留：
 

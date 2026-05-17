@@ -16,6 +16,8 @@ curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_u
   | sudo env REPO_URL="https://github.com/baoyuy/f-d-cn.git" BRANCH="main" bash
 ```
 
+这同一条命令同时负责首次部署和后续更新。已经部署过时，重复执行它会自动拉取最新代码、重建 Docker 镜像并重启容器；已有配置文件会保留，不会覆盖。
+
 这个命令会自动完成：
 
 - 安装基础工具：`curl`、`git`、`gnupg` 等。
@@ -70,7 +72,7 @@ curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_u
 参数说明：
 
 - `REPO_URL`：源码仓库地址。部署中文定制版时应指向本仓库，不要填官方原仓库。
-- `BRANCH`：部署分支，当前推荐使用 `main`。
+- `BRANCH`：部署分支，默认 `main`。
 - `INSTALL_DIR`：部署目录，默认 `/opt/freqtrade-cn`。
 - `API_PORT`：宿主机本地 API 端口，默认 `8080`。
 - `STRATEGY`：启动策略，默认 `SampleStrategy`。
@@ -88,6 +90,20 @@ docker compose run --rm freqtrade new-config --config user_data/config.json
 一键部署脚本会自动执行 `create-userdir`。`new-config` 是交互式命令，不适合无人值守部署，所以脚本会生成一个默认配置文件。
 
 如果 `/opt/freqtrade-cn/user_data/config.json` 已经存在，脚本会保留原配置，不会覆盖。
+
+## 更新和重启
+
+更新代码、重建镜像和重启容器不需要另一套命令。继续执行首次部署时的同一条一键部署命令：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_ubuntu_docker.sh \
+  | sudo env REPO_URL="https://github.com/baoyuy/f-d-cn.git" BRANCH="main" bash
+```
+
+脚本会自动判断 `/opt/freqtrade-cn` 是否已经是 Git 仓库：
+
+- 首次部署：克隆仓库、初始化 `user_data`、生成默认配置、启动容器。
+- 再次执行：拉取最新代码、保留已有配置、重建镜像、重启容器。
 
 ## 常用维护命令
 
@@ -117,14 +133,6 @@ docker compose restart
 ```bash
 cd /opt/freqtrade-cn
 docker compose down
-```
-
-更新代码并重新构建：
-
-```bash
-cd /opt/freqtrade-cn
-git pull --ff-only
-docker compose up -d --build
 ```
 
 ## 启用 Telegram 中文版
