@@ -136,7 +136,8 @@ bash -c 'tmp="$(mktemp -d)" && GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=acc
 - 部署目录：`/opt/freqtrade-cn`
 - 默认交易所：`binance`
 - 默认交易模式：`dry_run: true`
-- 默认策略：`CnTrendPullbackStrategy`
+- 默认策略：`CnStrongTrendStrategy`
+- 默认交易对池：按 USDT 现货成交量动态筛选强势币
 - Telegram 默认关闭，但配置里已写入 `"language": "zh"`
 - API 仅绑定宿主机本地地址：`127.0.0.1:8080`
 

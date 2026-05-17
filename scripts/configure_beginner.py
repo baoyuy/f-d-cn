@@ -24,17 +24,17 @@ DEFAULT_CONFIG = {
     "cancel_open_orders_on_exit": False,
     "trading_mode": "spot",
     "margin_mode": "",
-    "timeframe": "5m",
+    "timeframe": "15m",
     "minimal_roi": {
-        "120": 0.0,
-        "60": 0.01,
-        "30": 0.02,
-        "0": 0.04,
+        "240": 0.0,
+        "120": 0.02,
+        "60": 0.04,
+        "0": 0.08,
     },
-    "stoploss": -0.08,
+    "stoploss": -0.06,
     "trailing_stop": True,
-    "trailing_stop_positive": 0.015,
-    "trailing_stop_positive_offset": 0.03,
+    "trailing_stop_positive": 0.025,
+    "trailing_stop_positive_offset": 0.05,
     "trailing_only_offset_is_reached": True,
     "unfilledtimeout": {
         "entry": 10,
@@ -71,10 +71,43 @@ DEFAULT_CONFIG = {
         "name": "binance",
         "key": "",
         "secret": "",
-        "pair_whitelist": ["BTC/USDT", "ETH/USDT"],
-        "pair_blacklist": [],
+        "pair_whitelist": [".*/USDT"],
+        "pair_blacklist": [
+            "BNB/.*",
+            ".*UP/USDT",
+            ".*DOWN/USDT",
+            ".*BULL/USDT",
+            ".*BEAR/USDT",
+            ".*3L/USDT",
+            ".*3S/USDT",
+            "USDC/USDT",
+            "FDUSD/USDT",
+            "TUSD/USDT",
+            "BUSD/USDT",
+        ],
     },
-    "pairlists": [{"method": "StaticPairList"}],
+    "pairlists": [
+        {
+            "method": "VolumePairList",
+            "number_assets": 40,
+            "sort_key": "quoteVolume",
+            "min_value": 0,
+            "refresh_period": 1800,
+        },
+        {
+            "method": "AgeFilter",
+            "min_days_listed": 10,
+        },
+        {"method": "PrecisionFilter"},
+        {
+            "method": "PriceFilter",
+            "low_price_ratio": 0.01,
+        },
+        {
+            "method": "SpreadFilter",
+            "max_spread_ratio": 0.005,
+        },
+    ],
     "telegram": {
         "enabled": False,
         "language": "zh",
@@ -201,9 +234,9 @@ def configure_interactively(config: dict[str, Any]) -> dict[str, Any]:
 
     config["strategy"] = prompt_text(
         "策略名",
-        str(config.get("strategy") or "CnTrendPullbackStrategy"),
+        str(config.get("strategy") or "CnStrongTrendStrategy"),
     )
-    config["timeframe"] = prompt_text("K线周期", str(config.get("timeframe") or "5m"))
+    config["timeframe"] = prompt_text("K线周期", str(config.get("timeframe") or "15m"))
     config["max_open_trades"] = prompt_int("最大同时持仓数", int(config.get("max_open_trades", 3)))
     config["stake_currency"] = prompt_text("计价币种", str(config.get("stake_currency") or "USDT"))
     config["stake_amount"] = prompt_float("每笔投入金额", float(config.get("stake_amount", 100)))
@@ -220,9 +253,7 @@ def configure_interactively(config: dict[str, Any]) -> dict[str, Any]:
     config["trading_mode"] = "spot"
     config["margin_mode"] = ""
     exchange["name"] = prompt_text("交易所", str(exchange.get("name") or "binance"))
-    exchange["pair_whitelist"] = prompt_pairs(
-        exchange.get("pair_whitelist") or ["BTC/USDT", "ETH/USDT"]
-    )
+    exchange["pair_whitelist"] = prompt_pairs(exchange.get("pair_whitelist") or [".*/USDT"])
     exchange.setdefault("pair_blacklist", [])
 
     if prompt_bool("是否配置 Telegram 中文机器人", bool(telegram.get("enabled", False))):
@@ -277,7 +308,7 @@ def main() -> None:
     config = load_config(path)
     ensure_api_secrets(config)
     if args.yes:
-        config["strategy"] = config.get("strategy") or "CnTrendPullbackStrategy"
+        config["strategy"] = config.get("strategy") or "CnStrongTrendStrategy"
         validate_config(config)
     else:
         config = configure_interactively(config)

@@ -71,8 +71,8 @@ bash -c 'tmp="$(mktemp -d)" && GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=acc
 - 配置文件：`/opt/freqtrade-cn/user_data/config.json`
 - 默认交易模式：`dry_run: true`
 - 默认交易所：`binance`
-- 默认交易对：`BTC/USDT`、`ETH/USDT`
-- 默认策略：`CnTrendPullbackStrategy`
+- 默认交易对池：按 USDT 现货成交量动态筛选，默认最多 40 个交易对。
+- 默认策略：`CnStrongTrendStrategy`
 - Telegram 默认关闭，但配置里已写入 `"language": "zh"`
 - API 默认只映射到宿主机本地地址：`127.0.0.1:8080`
 
@@ -87,7 +87,7 @@ curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_u
       BRANCH="main" \
       INSTALL_DIR="/opt/freqtrade-cn" \
       API_PORT="8080" \
-      STRATEGY="CnTrendPullbackStrategy" \
+      STRATEGY="CnStrongTrendStrategy" \
       IMAGE_NAME="freqtrade-cn:local" \
       bash
 ```
@@ -98,7 +98,7 @@ curl -fsSL https://raw.githubusercontent.com/baoyuy/f-d-cn/main/scripts/deploy_u
 - `BRANCH`：部署分支，默认 `main`。
 - `INSTALL_DIR`：部署目录，默认 `/opt/freqtrade-cn`。
 - `API_PORT`：宿主机本地 API 端口，默认 `8080`。
-- `STRATEGY`：启动策略，默认 `CnTrendPullbackStrategy`。
+- `STRATEGY`：启动策略，默认 `CnStrongTrendStrategy`。
 - `IMAGE_NAME`：本地 Docker 镜像名，默认 `freqtrade-cn:local`。
 - `TELEGRAM_ENABLED`：是否启用 Telegram，传 `true` 会开启。
 - `TELEGRAM_TOKEN`：完整 Telegram Bot Token，格式必须是 `机器人ID:密钥`。

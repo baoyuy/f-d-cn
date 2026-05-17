@@ -6,7 +6,7 @@ INSTALL_DIR="${INSTALL_DIR:-/opt/freqtrade-cn}"
 REPO_URL="${REPO_URL:-}"
 BRANCH="${BRANCH:-main}"
 API_PORT="${API_PORT:-8080}"
-STRATEGY="${STRATEGY:-CnTrendPullbackStrategy}"
+STRATEGY="${STRATEGY:-CnStrongTrendStrategy}"
 IMAGE_NAME="${IMAGE_NAME:-freqtrade-cn:local}"
 TELEGRAM_ENABLED="${TELEGRAM_ENABLED:-}"
 TELEGRAM_TOKEN="${TELEGRAM_TOKEN:-}"
@@ -252,17 +252,17 @@ write_default_config() {
     "cancel_open_orders_on_exit": false,
     "trading_mode": "spot",
     "margin_mode": "",
-    "timeframe": "5m",
+    "timeframe": "15m",
     "minimal_roi": {
-        "120": 0.0,
-        "60": 0.01,
-        "30": 0.02,
-        "0": 0.04
+        "240": 0.0,
+        "120": 0.02,
+        "60": 0.04,
+        "0": 0.08
     },
-    "stoploss": -0.08,
+    "stoploss": -0.06,
     "trailing_stop": true,
-    "trailing_stop_positive": 0.015,
-    "trailing_stop_positive_offset": 0.03,
+    "trailing_stop_positive": 0.025,
+    "trailing_stop_positive_offset": 0.05,
     "trailing_only_offset_is_reached": true,
     "unfilledtimeout": {
         "entry": 10,
@@ -300,14 +300,44 @@ write_default_config() {
         "key": "",
         "secret": "",
         "pair_whitelist": [
-            "BTC/USDT",
-            "ETH/USDT"
+            ".*/USDT"
         ],
-        "pair_blacklist": []
+        "pair_blacklist": [
+            "BNB/.*",
+            ".*UP/USDT",
+            ".*DOWN/USDT",
+            ".*BULL/USDT",
+            ".*BEAR/USDT",
+            ".*3L/USDT",
+            ".*3S/USDT",
+            "USDC/USDT",
+            "FDUSD/USDT",
+            "TUSD/USDT",
+            "BUSD/USDT"
+        ]
     },
     "pairlists": [
         {
-            "method": "StaticPairList"
+            "method": "VolumePairList",
+            "number_assets": 40,
+            "sort_key": "quoteVolume",
+            "min_value": 0,
+            "refresh_period": 1800
+        },
+        {
+            "method": "AgeFilter",
+            "min_days_listed": 10
+        },
+        {
+            "method": "PrecisionFilter"
+        },
+        {
+            "method": "PriceFilter",
+            "low_price_ratio": 0.01
+        },
+        {
+            "method": "SpreadFilter",
+            "max_spread_ratio": 0.005
         }
     ],
     "telegram": {

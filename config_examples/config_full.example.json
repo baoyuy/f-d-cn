@@ -209,7 +209,7 @@
         "heartbeat_interval": 60
     },
     "disable_dataframe_checks": false,
-    "strategy": "CnTrendPullbackStrategy",
+    "strategy": "CnStrongTrendStrategy",
     "strategy_path": "user_data/strategies/",
     "recursive_strategy_search": false,
     "add_config_files": [],
